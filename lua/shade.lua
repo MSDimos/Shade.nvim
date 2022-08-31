@@ -287,6 +287,31 @@ end
 
 local shade = {}
 
+shade.on_session_load_post = function()
+	shade.toggle_off()
+	vim.schedule(function()
+		shade.toggle_on()
+	end)
+end
+
+shade.toggle_on = function()
+	create_tabpage_overlays(0)
+	state.active = true
+end
+
+shade.toggle_off = function()
+	remove_all_overlays()
+	state.active = false
+end
+
+shade.toggle = function()
+	if state.active then
+		shade.toggle_off()
+	else
+		shade.toggle_on()
+	end
+end
+
 -- init
 shade.init = function(opts)
 	state.active_overlays = {}
@@ -330,6 +355,7 @@ shade.init = function(opts)
     au WinClosed         * call v:lua.require'shade'.autocmd('WinClosed', expand('<afile>'))
     au TabEnter          * call v:lua.require'shade'.autocmd('TabEnter',  win_getid())
     au OptionSet         diff call v:lua.require'shade'.autocmd('OptionSet', win_getid())
+	au SessionLoadPost   * call v:lua.require'shade'.autocmd('SessionLoadPost')
     augroup END
   ]],
 		false
@@ -482,23 +508,12 @@ M.brightness_down = function()
 	shade.change_brightness(adjusted)
 end
 
-M.toggle = function()
-	if state.active then
-		remove_all_overlays()
-		print("off")
-		state.active = false
-	else
-		create_tabpage_overlays(0)
-		print("on")
-		state.active = true
-	end
-end
+M.toggle = shade.toggle
 
 M.autocmd = function(event, winid)
 	if not state.active then
 		return
 	end
-	log("AutoCmd: " .. event .. " : " .. winid)
 
 	local event_fn = {
 		["WinEnter"] = function()
@@ -517,6 +532,9 @@ M.autocmd = function(event, winid)
 				unshade_window(winid)
 				shade_tabpage(winid)
 			end
+		end,
+		["SessionLoadPost"] = function()
+			shade.on_session_load_post()
 		end,
 	}
 
